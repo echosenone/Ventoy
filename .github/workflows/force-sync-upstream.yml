@@ -3,7 +3,7 @@ name: Force sync fork with upstream
 on:
   workflow_dispatch:
   schedule:
-    - cron: "6 22/12 * * *"
+    - cron: "17 */12 * * *"
 
 permissions:
   contents: read
@@ -28,16 +28,19 @@ jobs:
           echo "upstream=$PARENT_FULL_NAME" >> $GITHUB_OUTPUT
           echo "branch=$DEFAULT_BRANCH" >> $GITHUB_OUTPUT
 
-      - name: Checkout fork
+      - name: Checkout fork (no stored credentials)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Force sync to upstream (push via PAT)
         env:
           PUSH_TOKEN: ${{ secrets.PUSH_TOKEN }}
         run: |
           set -e
+          test -n "$PUSH_TOKEN" || (echo "PUSH_TOKEN secret is missing/empty" && exit 1)
+
           UPSTREAM="https://github.com/${{ steps.repo.outputs.upstream }}.git"
           BRANCH="${{ steps.repo.outputs.branch }}"
 
@@ -46,5 +49,4 @@ jobs:
           git checkout "$BRANCH"
           git reset --hard "upstream/$BRANCH"
 
-          # Push as YOU (PAT), so workflow files can be updated safely.
           git push "https://${PUSH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH" --force-with-lease
